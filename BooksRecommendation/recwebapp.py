@@ -1,84 +1,98 @@
+from sklearn.decomposition import TruncatedSVD
+import sklearn
+import IPython.display as Disp
+import requests
+from numpy import int64
+import numpy as np
+import pandas as pd
 from flask import Flask, request, render_template
 import os
 
-# setting up template directory
-TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')
-
+# Path of HTML templates
+TEMPLATE_DIR = os.path.join(os.path.dirname(
+    os.path.abspath(__file__)), 'templates')
+# Start Flask App with HTML/CSS/JS
 app = Flask(__name__, template_folder=TEMPLATE_DIR, static_folder=TEMPLATE_DIR)
-#app = Flask(__name__)
 
-import pandas as pd
-import numpy as np
-from numpy import int64
-
-import requests
-import IPython.display as Disp
-
-import sklearn
-from sklearn.decomposition import TruncatedSVD
-
-
-
-
-
+# Default local host is port 5000
 @app.route("/")
 def hello():
-	return TEMPLATE_DIR
+    return TEMPLATE_DIR
 
 
+# Verbose update on what happens when the python application is launched
+print("Building Recommendation Engine . . .")
 
-print("building recommendation engine")
-print("reading data")
-books_df = pd.read_csv("./dataset/books.csv")
-ratings_df = pd.read_csv("./dataset/ratings.csv", encoding='UTF-8',  dtype={'user_id': int,'book_id':int, 'rating':int} )
-books_df_2 = books_df[['book_id', 'books_count', 'original_publication_year', 'average_rating','original_title','image_url','authors']]
-combined_books_df = pd.merge(ratings_df, books_df, on='book_id')
-print("creating pivot table")
-ct_df = combined_books_df.pivot_table(values='rating', index='user_id', columns='original_title', fill_value=0)
-X = ct_df.values.T
-print("Creating SVD")
-SVD  = TruncatedSVD(n_components=20, random_state=17)
-result_matrix = SVD.fit_transform(X)
-print("building correlation")
-corr_mat = np.corrcoef(result_matrix)
-book_names = ct_df.columns
+# Read in data sets using Panda library
+print("Reading data . . .")
+books_table = pd.read_csv("./dataset/books.csv")
+ratings_table = pd.read_csv("./dataset/ratings.csv", encoding='UTF-8',
+                            dtype={'user_id': int, 'book_id': int, 'rating': int})
+print("Finished reading in books and ratings datasets")
+
+# Merge the books and ratings datasets based on book_id
+print("Merging datasets . . .")
+books_table_2 = books_table[['book_id', 'original_title', 'average_rating', 'books_count',
+                             'original_publication_year', 'authors', 'image_url']]
+combined_books_table = pd.merge(ratings_table, books_table, on='book_id')
+print("Finished merging datasets")
+
+# Create a three dimensional pivot table of row: users, column: book titles and the ratings as the values
+print("Creating Pivot table of users, book titles, and ratings . . .")
+pt_matrix = combined_books_table.pivot_table(
+    values='rating', index='user_id', columns='original_title', fill_value=0)
+# Transpose the row with the columns for SVD
+tranX_matrix = pt_matrix.values.T
+print("Finished transposing matrices")
+
+# Compress column with TruncatedSVD to make calculation of coefficient manageable
+print("Beginning SVD . . .")
+SVD = TruncatedSVD(n_components=20, random_state=17)
+svd_matrix = SVD.fit_transform(tranX_matrix)
+print("Generated SVD Matrix")
+
+# Use Numpy library to calculate the Pearson coefficient for similarity of books based on categories
+print("Building similarity coefficient matrix . . .")
+corr_matrix = np.corrcoef(svd_matrix)
+print("Finished calculating Pearson coefficients for book similarities")
+
+# Get the book names in a list
+print("Getting the list of book names in the matrix")
+book_names = pt_matrix.columns
 book_list = list(book_names)
-isInitialized = True
-print(book_list.index("The Hunger Games"))
-print("done building recommendation engine")
-print("ready for recommendation engine")
-#hunger_game_index = book_list.index('The Hunger Games')
-#corr_hunger_games = corr_mat[hunger_game_index]
-#list(book_names[(corr_hunger_games<1.0) & (corr_hunger_games>0.8)])
+
+print("Finish building the recommendation engine")
 
 
 def getRecommendations(bookName):
-	book_name_index = book_list.index(bookName)
-	corr_book = corr_mat[book_name_index]
-	recList = list(book_names[(corr_book<1.0) & (corr_book>0.9)])
-	max=5
-	if(len(recList)<5):
-		max=len(recList)
-	return books_df_2[books_df_2.original_title.isin(recList)]
+    # Find the index of where the book name is in the correlation matrix
+    book_name_index = book_list.index(bookName)
+    corr_book = corr_matrix[book_name_index]
 
+    # Filter books from 0.75 to 1.0 Pearson Coefficient in the correlation matrix
+    rec_list = list(book_names[(corr_book < 1.0) & (corr_book > 0.75)])
 
+    # max = 5
+    # if(len(rec_list) < 5):
+    #     max = len(rec_list)
+    return books_table_2[books_table_2.original_title.isin(rec_list)]
 
-@app.route("/rec",	 methods=['GET', 'POST'])
+# Start with rec.html with GET method, then POST method when a query exists
+@app.route("/rec", methods=['GET', 'POST'])
 def rec():
-	query = '' 
-	if(request.method == "POST"):
-		print("inside post")
-		print(str(request.form.get('query')))
-		query = request.form.get('query')
-		#print("the book name is " + query)
-		recommendations = getRecommendations(query)
-		#print(query)
-		return render_template('rec.html', query=query, recommendations=recommendations.to_html())
-	else:
-		return render_template('rec.html', query="" ,recommendations="<<unknown>>")
-	
+    query = ''
+    if(request.method == "POST"):
+                # Get the User query from the form text field
+        query = request.form.get('query')
+        recommendations = getRecommendations(query)
 
+        # Render the html template with the query value with the user query and fire up the recommendations algorithm
+        return render_template('rec.html', query=query, recommendations=recommendations.to_html())
+    else:
+                # User has not issued a query yet
+        return render_template('rec.html', query="", recommendations="<<unknown>>")
+
+
+# Flask App run on localhost:5000/rec
 if __name__ == "__main__":
-    app.run(debug=True)
-
-
+    app.run(use_reloader=False)
