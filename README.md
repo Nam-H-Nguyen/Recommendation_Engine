@@ -4,3 +4,5 @@ Build a python-based recommendation engine suggesting users books based on user 
 
 --
 ![Book Recommendation](https://github.com/Nam-H-Nguyen/Recommendation_Engine/blob/master/BooksRecommendation/images/book_recommendation.PNG)
+
+<img src="https://github.com/Nam-H-Nguyen/Recommendation_Engine/blob/master/BooksRecommendation/images/book_recommendation.PNG" width="25%" height="25%" />
