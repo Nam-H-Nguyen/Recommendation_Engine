@@ -1,8 +1,2 @@
 # Recommendation_Engine
 Build a python-based recommendation engine suggesting users books based on user queries and the similarities of the queries
-
-
---
-![Book Recommendation](https://github.com/Nam-H-Nguyen/Recommendation_Engine/blob/master/BooksRecommendation/images/book_recommendation.PNG)
-
-<img src="https://github.com/Nam-H-Nguyen/Recommendation_Engine/blob/master/BooksRecommendation/images/book_recommendation.PNG" width="25%" height="25%" />
