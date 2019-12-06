@@ -70,7 +70,7 @@ def getRecommendations(bookName):
     corr_book = corr_matrix[book_name_index]
 
     # Filter books from 0.75 to 1.0 Pearson Coefficient in the correlation matrix
-    rec_list = list(book_names[(corr_book < 1.0) & (corr_book > 0.75)])
+    rec_list = list(book_names[(corr_book < 1.0) & (corr_book > 0.85)])
 
     # max = 5
     # if(len(rec_list) < 5):
